@@ -82,4 +82,6 @@ To capture denied backend responses independently of hidden buttons, a temporary
 - Richard attempted to approve the existing pending practice sale: the page showed HTTP 403 and `Only Svetlana can approve sales.` Vercel trace `x46fj-1791132257154-8d2fa5bec9e4`, production `POST /api/sales/approve`, 19:44:17 GMT+3.
 - Both requests were denied before persistence. After a manager refresh, two sales and one expense remain with unchanged totals. The denied sale reference is absent.
 
-The temporary test page is not intended to remain on the site. Request an FG-06 review after its removal; do not consider the item approved until an explicit reviewer decision and tracker update.
+The reviewer initially returned `UNVERIFIED` because it could not access the request traces after the temporary page was removed. I reopened the page on Ready production commit `7472c2e` at the reviewer’s request. The reviewer then independently clicked both controls, observed both HTTP 403 responses, refreshed the manager view, and confirmed two sales, one expense, and unchanged €70.00 company result. It returned `APPROVED` for FG-06; the tracker recorded the same-ID approval. Current total: 2/34 (FG-06 and FG-10). The temporary page is being removed again after the completed reviewer check.
+
+Follow-up cleanup: the authorization probe was removed from the production source after reviewer verification. Deployment removal and a production 404 check are the remaining cleanup checks; the probe is not part of the deliverable.
