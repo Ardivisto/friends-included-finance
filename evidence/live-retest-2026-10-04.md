@@ -71,3 +71,15 @@ The reviewer found that the previous 101% attempt had been blocked by browser-si
 At the production form, as Richard, submitted fictional sale ref `FG10-SERVER-RANGE-02`, amount €100, shares `101 / 0 / -1` (sum 100). The deployed form displayed `Richard Darling must be a whole percentage from 0 to 100.` Vercel Logs show the actual production POST `/api/sales` completed HTTP 400 at 19:33:48 GMT+3, request `vfx99-1791131628799-bddbeaf95b01`, routed to `/api/index.js` in production. After page reload, the manager still saw exactly two sales (one approved practice record and one pending practice record) and one expense. The rejected reference did not appear.
 
 This closes the reviewer’s remaining stated FG-10 server-boundary gap with concrete live evidence. The reviewer independently returned `APPROVED` for FG-10 after reproducing the 101/0/-1 server rejection and unchanged totals. The tracker recorded FG-10 `APPROVED`; current total is 1/34. Google Sheets, Telegram, role walkthrough, and prescribed Test 1/Test 2 gaps remain separate items.
+
+## FG-06 production role and denial retest — 2026-10-04, 19:44 EEST
+
+On the deployed demonstration-role selector, Richard sees his two fictional sales with approved/pending statuses; Anastasia and Jean-Claude each see “No records for this view yet”; Kevin’s Expenses tab shows his own €20.00 expense as awaiting allocation; Svetlana’s manager view sees both sales and the expense, with corresponding records and totals. The role selector is labeled “Demonstration role”.
+
+To capture denied backend responses independently of hidden buttons, a temporary no-secret test page was deployed in commit `35425f1` at `/authorization-probe.html`; it sent only fictional denied requests and is being removed immediately after these checks. Results:
+
+- Kevin submitted fictional sale `FG06-DENIED-SALE-01`: the page showed HTTP 403 and `Only salespeople can submit sales.` Vercel trace `kgk6v-1791132247444-fd496ef617ef`, production `POST /api/sales`, 19:44:07 GMT+3.
+- Richard attempted to approve the existing pending practice sale: the page showed HTTP 403 and `Only Svetlana can approve sales.` Vercel trace `x46fj-1791132257154-8d2fa5bec9e4`, production `POST /api/sales/approve`, 19:44:17 GMT+3.
+- Both requests were denied before persistence. After a manager refresh, two sales and one expense remain with unchanged totals. The denied sale reference is absent.
+
+The temporary test page is not intended to remain on the site. Request an FG-06 review after its removal; do not consider the item approved until an explicit reviewer decision and tracker update.
