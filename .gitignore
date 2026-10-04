@@ -1,6 +1,7 @@
 .env
 .env.*
 !.env.example
+/google-service-account.json
 node_modules/
 .vercel/
 coverage/
