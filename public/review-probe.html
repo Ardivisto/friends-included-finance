@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Temporary acceptance checks</title>
+<style>body{font:16px system-ui;max-width:760px;margin:2rem auto;padding:0 1rem;color:#202631}button{display:block;margin:.6rem 0;padding:.65rem 1rem}pre{white-space:pre-wrap;background:#f2f4f7;padding:1rem}small{color:#566}</style>
+<h1>Temporary acceptance checks</h1>
+<p>Fixed fictional test requests only. This page shows response codes, short status messages, record counts and calculated totals. It never displays account IDs, private chat IDs, tokens, or raw record payloads.</p>
+<button data-check="denied-sale">Check Kevin cannot submit a sale (expected 403)</button>
+<button data-check="denied-approval">Check Richard cannot approve S05 (expected 403)</button>
+<button data-check="idempotent-sale">Repeat the completed S03 approval with a conflicting split (must preserve saved decision)</button>
+<button data-check="idempotent-expense">Repeat completed E04 allocation with a conflicting destination (must preserve saved decision)</button>
+<pre id="output" aria-live="polite">Ready.</pre>
+<script>
+const output=document.querySelector('#output');
+async function post(path,body){const r=await fetch('/api'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});let data={};try{data=await r.json()}catch{}return{status:r.status,data};}
+async function snapshot(){const r=await fetch('/api/state?role=svetlana',{cache:'no-store'});if(!r.ok)throw Error(`State request HTTP ${r.status}`);const d=await r.json();return{sales:d.sales.length,expenses:d.expenses.length,deliveries:d.deliveries.length,totals:d.totals};}
+function report(name,code,data){return{name,http:code,message:data.error||data.row?.reference|| (data.repeated?'repeat ignored':'request completed'),repeated:data.repeated??undefined,finalSplit:data.row?.final_split??undefined,finalAllocation:data.row?.final_allocation??undefined};}
+document.querySelectorAll('button').forEach(button=>button.addEventListener('click',async()=>{button.disabled=true;try{const before=await snapshot();let r,name;switch(button.dataset.check){case'denied-sale':name='Kevin sale denied';r=await post('/sales',{role:'kevin',reference:'FG26-DENIED-SALE',customer:'Fictional check',project:'A',description:'Authorization probe; must not be recorded',amount:'1.00',split:{richard:100,anastasia:0,jean_claude:0}});break;case'denied-approval':name='Richard approval denied';r=await post('/sales/approve',{role:'richard',reference:'S05',split:{richard:100,anastasia:0,jean_claude:0}});break;case'idempotent-sale':name='Repeated S03 decision';r=await post('/sales/approve',{role:'svetlana',reference:'S03',split:{richard:0,anastasia:0,jean_claude:100}});break;case'idempotent-expense':name='Repeated E04 allocation';r=await post('/expenses/allocate',{role:'svetlana',reference:'E04',allocation:'A'});break;}const after=await snapshot();output.textContent=JSON.stringify({request:report(name,r.status,r.data),before,after,unchanged:JSON.stringify(before)===JSON.stringify(after)},null,2);}catch(e){output.textContent=`Check failed: ${e.message}`}finally{button.disabled=false}}));
+</script>
+</html>
