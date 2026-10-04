@@ -197,6 +197,9 @@ alter table sales enable row level security;
 alter table expenses enable row level security;
 alter table deliveries enable row level security;
 alter table sheet_positions enable row level security;
+grant usage on schema public to service_role;
+grant select, insert, update, delete on employees, transaction_refs, sales, expenses, deliveries, sheet_positions to service_role;
+grant usage, select on all sequences in schema public to service_role;
 -- No client policies: the server uses the service role and enforces demonstration roles.
 revoke execute on function queue_delivery(text,text,text,text,bigint,text) from public,anon,authenticated;
 revoke execute on function submit_sale(jsonb) from public,anon,authenticated;

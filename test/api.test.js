@@ -20,4 +20,5 @@ test('processing layer denies wrong roles and malformed inputs before persistenc
   assert.equal(zero.status,400);assert.match(zero.body.error,/greater than zero/);
   const missing=await call('/api/expenses',{role:'kevin',reference:'E99',description:'Fictional costume',category:'Materials',allocation:'A'});
   assert.equal(missing.status,400);assert.match(missing.body.error,/positive euro/);
+  assert.deepEqual(await call('/api/expenses','{"role":"kevin"'),{status:400,body:{error:'Invalid JSON body.'}});
 });

@@ -5,9 +5,13 @@ const delivery = require('../lib/delivery');
 
 function respond(res,status,data) { res.statusCode=status; res.setHeader('Content-Type','application/json; charset=utf-8'); res.setHeader('Cache-Control','no-store'); res.end(JSON.stringify(data)); }
 async function bodyOf(req) {
-  if (req.body !== undefined) return typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+  const parse = (raw) => {
+    try { return JSON.parse(raw); }
+    catch { throw new domain.InputError('Invalid JSON body.'); }
+  };
+  if (req.body !== undefined) return typeof req.body === 'string' ? parse(req.body) : req.body;
   let raw=''; for await (const chunk of req) { raw+=chunk; if (raw.length>100000) throw new domain.InputError('Request is too large.'); }
-  return raw ? JSON.parse(raw) : {};
+  return raw ? parse(raw) : {};
 }
 function actor(req,body) {
   const role = body.role || new URL(req.url,'http://local').searchParams.get('role');
