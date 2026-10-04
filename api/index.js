@@ -144,10 +144,17 @@ async function setupTelegramWebhook(req) {
   if (!response.ok || !result.ok) throw new Error('Telegram webhook registration failed.');
   return {configured:true};
 }
+function setupTelegramPage(res) {
+  res.statusCode=200;
+  res.setHeader('Content-Type','text/html; charset=utf-8');
+  res.setHeader('Cache-Control','no-store');
+  res.end(`<!doctype html><meta charset="utf-8"><title>Telegram setup</title><h1>One-time Telegram webhook setup</h1><form id="setup"><label>One-time setup secret <input id="secret" type="password" autocomplete="off" required></label><button>Register webhook</button></form><p id="result" role="status"></p><script>document.querySelector('#setup').addEventListener('submit',async e=>{e.preventDefault();const secret=document.querySelector('#secret').value;const r=await fetch('/api/telegram/setup',{method:'POST',headers:{Authorization:'Bearer '+secret}});document.querySelector('#secret').value='';document.querySelector('#result').textContent=r.ok?'Webhook registered.':'Setup failed ('+r.status+').';});</script>`);
+}
 module.exports=async function handler(req,res) {
   try {
     const url=new URL(req.url,'http://local'),path=url.pathname.replace(/^\/api/,'') || '/';
     if (path==='/telegram' && req.method==='POST') return telegram(req,res);
+    if (path==='/telegram/setup' && req.method==='GET') return setupTelegramPage(res);
     if (path==='/telegram/setup' && req.method==='POST') return respond(res,200,await setupTelegramWebhook(req));
     if (path==='/cron' && req.method==='GET') return respond(res,200,await cron(req));
     const body=req.method==='POST'?await bodyOf(req):{};
