@@ -16,7 +16,6 @@ function actor(req,body) {
 }
 function origin(row,source,chatId) { return { ...row,origin:source,origin_chat_id:chatId || null }; }
 async function publish(type,row,event,chatId,message) {
-  if (event!=='submitted' || chatId) await store.queueTelegram(type,row,event,chatId,message);
   const outbox = await store.deliveries();
   const relevant = outbox.filter((d)=>d.entity_type===type && d.reference===row.reference && (d.kind==='sheet' || (d.kind==='telegram' && d.event===event)));
   const results=[]; for (const job of relevant) if (job.status==='pending') results.push({id:job.id,...await delivery.processDelivery(job.id)});
@@ -24,38 +23,40 @@ async function publish(type,row,event,chatId,message) {
 }
 async function submitSale(role,input,source='website',chatId=null) {
   const record=origin(domain.saleInput(role,input),source,chatId);
+  if (source==='telegram') record.confirmation=`Sale ${record.reference} recorded. ${domain.money(record.amount_cents)}; project ${record.project} (${domain.PROJECTS[record.project]}). Status: Pending approval.`;
   const row=await store.rpc('submit_sale',{p_record:record});
-  const confirmation=`Sale ${row.reference} recorded. ${domain.money(row.amount_cents)}; project ${row.project} (${domain.PROJECTS[row.project]}). Status: Pending approval.`;
-  const deliveries=await publish('sale',row,'submitted',source==='telegram'?chatId:null,confirmation);
+  const deliveries=await publish('sale',row,'submitted',chatId,record.confirmation);
   return { row,deliveries };
 }
 async function submitExpense(role,input,source='website',chatId=null) {
   const record=origin(domain.expenseInput(role,input),source,chatId);
+  if (source==='telegram') record.confirmation=`Expense ${record.reference} recorded. ${domain.money(record.amount_cents)}; proposed allocation: ${domain.PROJECTS[record.proposed_allocation]}. Status: ${record.proposed_allocation==='overhead'?'Allocated as company overhead':'Awaiting allocation'}.`;
   const row=await store.rpc('submit_expense',{p_record:record});
-  const confirmation=`Expense ${row.reference} recorded. ${domain.money(row.amount_cents)}; proposed allocation: ${domain.PROJECTS[row.proposed_allocation]}. Status: ${row.status==='allocated'?'Allocated as company overhead':'Awaiting allocation'}.`;
-  const deliveries=await publish('expense',row,'submitted',source==='telegram'?chatId:null,confirmation);
+  const deliveries=await publish('expense',row,'submitted',chatId,record.confirmation);
   return { row,deliveries };
 }
 async function decideSale(role,reference,splitInput) {
   if (role!=='svetlana') throw new domain.InputError('Only Svetlana can approve sales.',403);
   const before=await store.one('sales',reference);
   const chosen=splitInput ? domain.split(splitInput) : before.proposed_split;
-  const row=await store.rpc('decide_sale',{p_actor:role,p_reference:reference,p_split:chosen});
+  const message=domain.saleDecisionMessage({...before,final_split:chosen});
+  const row=await store.rpc('decide_sale',{p_actor:role,p_reference:reference,p_split:chosen,p_payload:message});
   if (before.status==='approved') return { row,repeated:true,deliveries:[] };
   const employee=(await store.employees()).find((x)=>x.id===row.salesperson);
   const chatId=row.origin==='telegram'?row.origin_chat_id:employee?.telegram_chat_id;
-  const deliveries=await publish('sale',row,'approved',chatId,domain.saleDecisionMessage(row));
+  const deliveries=await publish('sale',row,'approved',chatId,message);
   return { row,repeated:false,deliveries,recipient:chatId?'linked':'No Telegram recipient linked' };
 }
 async function decideExpense(role,reference,allocationInput) {
   if (role!=='svetlana') throw new domain.InputError('Only Svetlana can allocate expenses.',403);
   const before=await store.one('expenses',reference);
   const chosen=domain.allocation(allocationInput || before.proposed_allocation);
-  const row=await store.rpc('decide_expense',{p_actor:role,p_reference:reference,p_allocation:chosen});
+  const message=domain.expenseDecisionMessage({...before,final_allocation:chosen});
+  const row=await store.rpc('decide_expense',{p_actor:role,p_reference:reference,p_allocation:chosen,p_payload:message});
   if (before.status==='allocated') return { row,repeated:true,deliveries:[] };
   const employee=(await store.employees()).find((x)=>x.id===row.reporter);
   const chatId=row.origin==='telegram'?row.origin_chat_id:employee?.telegram_chat_id;
-  const deliveries=await publish('expense',row,'allocated',chatId,domain.expenseDecisionMessage(row));
+  const deliveries=await publish('expense',row,'allocated',chatId,message);
   return { row,repeated:false,deliveries,recipient:chatId?'linked':'No Telegram recipient linked' };
 }
 function parseBot(text) {
