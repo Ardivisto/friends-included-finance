@@ -130,10 +130,25 @@ async function cron(req) {
   const results=[]; for (const job of jobs) results.push({id:job.id,...await delivery.processDelivery(job.id)});
   return {processed:results.length,results};
 }
+async function setupTelegramWebhook(req) {
+  if (!process.env.TELEGRAM_SETUP_SECRET || req.headers.authorization!==`Bearer ${process.env.TELEGRAM_SETUP_SECRET}`) {
+    throw new domain.InputError('Forbidden.',403);
+  }
+  const token=process.env.TELEGRAM_BOT_TOKEN,secret=process.env.TELEGRAM_WEBHOOK_SECRET,base=process.env.PUBLIC_VERCEL_URL;
+  if (!token || !secret || !base) throw new Error('Telegram webhook is not configured on the server.');
+  const response=await fetch(`https://api.telegram.org/bot${token}/setWebhook`,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({url:`${base.replace(/\/$/,'')}/api/telegram`,secret_token:secret,allowed_updates:['message']})
+  });
+  const result=await response.json();
+  if (!response.ok || !result.ok) throw new Error('Telegram webhook registration failed.');
+  return {configured:true};
+}
 module.exports=async function handler(req,res) {
   try {
     const url=new URL(req.url,'http://local'),path=url.pathname.replace(/^\/api/,'') || '/';
     if (path==='/telegram' && req.method==='POST') return telegram(req,res);
+    if (path==='/telegram/setup' && req.method==='POST') return respond(res,200,await setupTelegramWebhook(req));
     if (path==='/cron' && req.method==='GET') return respond(res,200,await cron(req));
     const body=req.method==='POST'?await bodyOf(req):{};
     const role=actor(req,body);
