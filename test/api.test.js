@@ -3,6 +3,18 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const handler=require('../api/index');
 
+test('completed test snapshots use only their original saved references',()=>{
+  const sale=(reference,amount_cents,project,final_split,status='approved')=>({reference,amount_cents,project,final_split,status});
+  const expense=(reference,amount_cents,final_allocation,status='allocated')=>({reference,amount_cents,final_allocation,status});
+  const sales=[sale('S01',100000,'A',[50,30,20]),sale('S02',200000,'B',[20,40,40]),sale('S03',150000,'A',[20,30,50]),sale('S04',80000,'B',[25,25,50]),sale('S05',60000,'B',null,'pending'),sale('S06',5000,'B',[0,100,0]),sale('S07',5,'A',[50,50,0])];
+  const expenses=[expense('E01',12000,'A'),expense('E02',8000,'A'),expense('E03',10000,'overhead'),expense('E04',25000,'B'),expense('E05',9000,'B'),expense('E06',6000,'overhead'),expense('E07',14000,null,'awaiting'),expense('E08',3500,'overhead'),expense('E09',2500,'overhead')];
+  const snapshots=handler._test.homeworkSnapshots(sales,expenses);
+  assert.equal(snapshots.test1.totals.company.result,240000);
+  assert.equal(snapshots.test2.totals.company.result,393000);
+  assert.equal(snapshots.test2.totals.earned.jean_claude,21500);
+  assert.equal(snapshots.test1.salesCount,2);assert.equal(snapshots.test2.salesCount,5);assert.equal(snapshots.test2.expensesCount,7);
+});
+
 async function call(path,body){
   const req={url:path,method:'POST',body,headers:{}};
   const res={headers:{},setHeader(name,value){this.headers[name]=value;},end(value){this.value=value;}};

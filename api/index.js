@@ -104,7 +104,18 @@ async function state(role) {
   const visibleSales=role==='svetlana'?sales:sales.filter((s)=>s.salesperson===role);
   const visibleExpenses=role==='svetlana'?expenses:expenses.filter((e)=>e.reporter===role);
   const refs=new Set([...visibleSales,...visibleExpenses].map((r)=>r.reference));
-  return {sales:visibleSales,expenses:visibleExpenses,deliveries:deliveries.filter((d)=>refs.has(d.reference)).map((d)=>({id:d.id,kind:d.kind,entity_type:d.entity_type,reference:d.reference,event:d.event,status:d.status,attempt_count:d.attempt_count,last_error:d.last_error,delivered_at:d.delivered_at})),employees:role==='svetlana'?employees.map((e)=>({id:e.id,display_name:e.display_name,telegram_user_id:e.telegram_user_id,telegram_chat_id:e.telegram_chat_id})):[],totals:role==='svetlana'?domain.totals(sales,expenses):null,public:{owner:process.env.PUBLIC_OWNER_NAME || '',bot:process.env.PUBLIC_BOT_USERNAME || '',sheet:process.env.PUBLIC_SHEET_URL || '',repo:process.env.PUBLIC_REPO_URL || ''}};
+  return {sales:visibleSales,expenses:visibleExpenses,deliveries:deliveries.filter((d)=>refs.has(d.reference)).map((d)=>({id:d.id,kind:d.kind,entity_type:d.entity_type,reference:d.reference,event:d.event,status:d.status,attempt_count:d.attempt_count,last_error:d.last_error,delivered_at:d.delivered_at})),employees:role==='svetlana'?employees.map((e)=>({id:e.id,display_name:e.display_name,telegram_user_id:e.telegram_user_id,telegram_chat_id:e.telegram_chat_id})):[],totals:role==='svetlana'?domain.totals(sales,expenses):null,homeworkTests:role==='svetlana'?homeworkSnapshots(sales,expenses):null,public:{owner:process.env.PUBLIC_OWNER_NAME || '',bot:process.env.PUBLIC_BOT_USERNAME || '',sheet:process.env.PUBLIC_SHEET_URL || '',repo:process.env.PUBLIC_REPO_URL || ''}};
+}
+function homeworkSnapshots(sales,expenses) {
+  const test1Sales=['S01','S02'],test1Expenses=['E01','E02','E03'];
+  const test2Sales=['S01','S02','S03','S04','S05'],test2Expenses=['E01','E02','E03','E04','E05','E06','E07'];
+  const snapshot=(saleRefs,expenseRefs)=>({
+    saleReferences:saleRefs,expenseReferences:expenseRefs,
+    salesCount:sales.filter((r)=>saleRefs.includes(r.reference)).length,
+    expensesCount:expenses.filter((r)=>expenseRefs.includes(r.reference)).length,
+    totals:domain.totals(sales.filter((r)=>saleRefs.includes(r.reference)),expenses.filter((r)=>expenseRefs.includes(r.reference)))
+  });
+  return {test1:snapshot(test1Sales,test1Expenses),test2:snapshot(test2Sales,test2Expenses)};
 }
 async function retry(role,id) {
   if (role!=='svetlana') throw new domain.InputError('Only Svetlana can retry deliveries.',403);
@@ -177,4 +188,4 @@ module.exports=async function handler(req,res) {
     return respond(res,error.status || 500,{error:error.status ? error.message : 'Unexpected server error.'});
   }
 };
-module.exports._test={parseBot,submitSale,submitExpense,decideSale,decideExpense};
+module.exports._test={parseBot,submitSale,submitExpense,decideSale,decideExpense,homeworkSnapshots};
